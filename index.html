@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reloj de Estudio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #e8eeeb;
+      background:
+        radial-gradient(ellipse at 16% 18%, rgba(101, 143, 128, 0.2), transparent 36%),
+        radial-gradient(ellipse at 84% 78%, rgba(83, 108, 130, 0.22), transparent 40%),
+        radial-gradient(ellipse at 78% 12%, rgba(129, 133, 158, 0.11), transparent 30%),
+        linear-gradient(135deg, #18232b, #26383a 52%, #202d35);
+      overflow-x: hidden;
+      position: relative;
+      isolation: isolate;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+    }
+    body::before {
+      background:
+        radial-gradient(ellipse at 50% 110%, rgba(105, 145, 128, 0.13), transparent 48%),
+        radial-gradient(ellipse at -10% 65%, rgba(91, 121, 133, 0.12), transparent 38%);
+    }
+    body::after {
+      inset: 0;
+      opacity: 0.16;
+      background-image: radial-gradient(rgba(220, 235, 228, 0.32) 0.7px, transparent 0.7px);
+      background-size: 30px 30px;
+      mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+    }
+    .card {
+      width: 92%;
+      max-width: 420px;
+      padding: 32px 28px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(220, 235, 228, 0.14);
+      border-radius: 24px;
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.25);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.8rem; }
+    #status { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; color: #a8cbb8; }
+    #status.break { color: #dfc995; }
+    #timer {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 5.5rem;
+      font-weight: bold;
+      margin: 8px 0 24px;
+      text-shadow: none;
+    }
+    #timer.break { text-shadow: none; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button {
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    button:hover { filter: brightness(1.12); }
+    button:active { filter: brightness(0.95); }
+    button:focus-visible, input:focus-visible { outline: 2px solid #c1d8cc; outline-offset: 3px; }
+    .start { background: #477866; }
+    .pause { background: #a58243; color: #18232b; }
+    .reset { background: #945b5b; }
+    .mode  { background: #536c82; }
+    .settings { grid-column: 1 / -1; background: #686580; }
+    .music { grid-column: 1 / -1; background: #526f69; }
+    .music-panel {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(220, 235, 228, 0.12);
+      border-radius: 14px;
+    }
+    .music-panel[hidden] { display: none; }
+    .music-panel label { font-size: 0.9rem; }
+    .music-panel select {
+      width: 100%;
+      padding: 10px;
+      color: #e8eeeb;
+      background: #26383a;
+      border: 1px solid rgba(220, 235, 228, 0.22);
+      border-radius: 10px;
+      font: inherit;
+    }
+    .music-panel audio { width: 100%; height: 40px; }
+    #sessions { margin: 24px 0 0; font-size: 1rem; opacity: 0.85; }
+    dialog {
+      width: min(92%, 360px);
+      padding: 28px;
+      color: #fff;
+      background: #26383a;
+      border: 1px solid rgba(220, 235, 228, 0.18);
+      border-radius: 20px;
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.35);
+    }
+    dialog::backdrop { background: rgba(10, 18, 22, 0.6); }
+    dialog h2 { margin: 0 0 20px; }
+    .field { display: grid; gap: 8px; margin-bottom: 16px; text-align: left; }
+    .field input {
+      width: 100%;
+      padding: 12px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(220, 235, 228, 0.22);
+      border-radius: 10px;
+      font: inherit;
+    }
+    .dialog-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+    .cancel { background: #536c82; }
+    .save { background: #477866; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Reloj de Estudio 📚</h1>
+    <p id="status">¡Hora de Concentrarse!</p>
+    <div id="timer">25:00</div>
+    <div class="buttons">
+      <button class="start" onclick="startTimer()">▶ Iniciar</button>
+      <button class="pause" onclick="pauseTimer()">⏸ Pausa</button>
+      <button class="reset" onclick="resetTimer()">↺ Reiniciar</button>
+      <button class="mode" onclick="switchMode()">⇄ Cambiar Modo</button>
+      <button class="settings" type="button" onclick="openSettings()">⚙ Configurar tiempos</button>
+      <button class="music" type="button" onclick="document.getElementById('musicFiles').click()">♫ Agregar música</button>
+      <input id="musicFiles" type="file" accept="audio/*" multiple hidden>
+      <section id="musicPanel" class="music-panel" aria-label="Reproductor de música" hidden>
+        <label for="musicTrack">Pista seleccionada</label>
+        <select id="musicTrack"></select>
+        <audio id="musicPlayer" controls preload="none"></audio>
+      </section>
+    </div>
+    <p id="sessions">Sesiones completadas: 0</p>
+  </main>
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <form id="settingsForm">
+      <h2 id="settingsTitle">Configurar tiempos</h2>
+      <label class="field" for="studyMinutes">
+        Tiempo de concentración (minutos)
+        <input id="studyMinutes" name="studyMinutes" type="number" min="1" max="99" step="1" value="25" required>
+      </label>
+      <label class="field" for="breakMinutes">
+        Tiempo de descanso (minutos)
+        <input id="breakMinutes" name="breakMinutes" type="number" min="1" max="99" step="1" value="5" required>
+      </label>
+      <div class="dialog-buttons">
+        <button class="cancel" type="button" onclick="closeSettings()">Cancelar</button>
+        <button class="save" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    let studySeconds = 25 * 60;
+    let breakSeconds = 5 * 60;
+
+    let isStudyMode = true;
+    let timeLeft = studySeconds;
+    let intervalId = null;
+    let sessions = 0;
+
+    const timerEl = document.getElementById("timer");
+    const statusEl = document.getElementById("status");
+    const sessionsEl = document.getElementById("sessions");
+    const settingsDialog = document.getElementById("settingsDialog");
+    const settingsForm = document.getElementById("settingsForm");
+    const studyMinutesInput = document.getElementById("studyMinutes");
+    const breakMinutesInput = document.getElementById("breakMinutes");
+    const musicFilesInput = document.getElementById("musicFiles");
+    const musicPanel = document.getElementById("musicPanel");
+    const musicTrackSelect = document.getElementById("musicTrack");
+    const musicPlayer = document.getElementById("musicPlayer");
+    const musicTracks = [];
+
+    musicFilesInput.addEventListener("change", () => {
+      const newTracks = Array.from(musicFilesInput.files || []);
+      if (newTracks.length === 0) return;
+
+      const firstNewTrackIndex = musicTracks.length;
+      newTracks.forEach((file) => {
+        musicTracks.push({ name: file.name, url: URL.createObjectURL(file) });
+        const option = document.createElement("option");
+        option.value = String(musicTracks.length - 1);
+        option.textContent = file.name;
+        musicTrackSelect.append(option);
+      });
+
+      musicPanel.hidden = false;
+      if (firstNewTrackIndex === 0) {
+        musicTrackSelect.value = String(firstNewTrackIndex);
+        selectMusicTrack();
+      }
+      musicFilesInput.value = "";
+    });
+
+    musicTrackSelect.addEventListener("change", selectMusicTrack);
+
+    function selectMusicTrack() {
+      const track = musicTracks[Number(musicTrackSelect.value)];
+      if (!track) return;
+      musicPlayer.src = track.url;
+      musicPlayer.load();
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function render() {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      timerEl.textContent = `${pad(minutes)}:${pad(seconds)}`;
+      document.title = `${timerEl.textContent} - Reloj de Estudio`;
+      statusEl.textContent = isStudyMode ? "¡Hora de Concentrarse!" : "☕ Hora del Descanso";
+      statusEl.classList.toggle("break", !isStudyMode);
+      timerEl.classList.toggle("break", !isStudyMode);
+      sessionsEl.textContent = `Sesiones completadas: ${sessions}`;
+    }
+
+    function startTimer() {
+      if (intervalId !== null) return;
+      intervalId = setInterval(() => {
+        timeLeft--;
+        render();
+        if (timeLeft <= 0) {
+          clearInterval(intervalId);
+          intervalId = null;
+          sessions++;
+          render();
+          alert("¡Tiempo terminado! 🎉");
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timeLeft = isStudyMode ? studySeconds : breakSeconds;
+      render();
+    }
+
+    function switchMode() {
+      isStudyMode = !isStudyMode;
+      resetTimer();
+    }
+
+    function openSettings() {
+      studyMinutesInput.value = String(studySeconds / 60);
+      breakMinutesInput.value = String(breakSeconds / 60);
+      settingsDialog.showModal();
+    }
+
+    function closeSettings() {
+      settingsDialog.close();
+    }
+
+    settingsForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      pauseTimer();
+      studySeconds = Number(studyMinutesInput.value) * 60;
+      breakSeconds = Number(breakMinutesInput.value) * 60;
+      timeLeft = isStudyMode ? studySeconds : breakSeconds;
+      render();
+      closeSettings();
+    });
+
+    render();
+  </script>
+</body>
+</html>
